@@ -5,6 +5,7 @@
 #include "nRF24L01.h"
 #include "RF24.h"
 #include "printf.h"
+#include "lowPower.h"
 
 #define DEBUG
 
@@ -37,9 +38,12 @@ void setup(void) {
     
 void loop(void) {
     radio.powerDown();
-    goToSleep();
+    LowPower.powerDown(SLEEP_1S, ADC_OFF, BOD_OFF);
+    digitalWrite(LED, LOW);
     radio.powerUp(); // go to normal radio operation mode (takes ~5ms)
     delay(5);
+    radio.write(secret, sizeof(secret));
+    digitalWrite(LED, HIGH);
 }
 
 void initializePins(){
