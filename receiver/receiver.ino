@@ -14,12 +14,14 @@
 #define CE          9  //Toggle between transmit (TX), receive (RX), standby, and power-down mode
 #define CSN         10 //SPI chip select 
 
-#define PAYLOAD_SIZE 31
+#define PAYLOAD_SIZE 32
+#define NOT_RECEIVED_AMOUNT 10
 
 const uint64_t pipe = 0xE8E8F0F0E1LL;
-char secret[30] = "77da4ba6-fdf2-11e7-8be5-0ed5ff";
+char secret[32] = "77da4ba6-fdf2-11e7-8be5-0ed5ffff";
 
-uint8_t state = 0;
+uint8_t state = 0; //0- locked, 1- unlocked
+uint8_t not_received = 0;
 
 RF24 radio(CE, CSN);
 
@@ -29,9 +31,10 @@ void setup(void) {
         printf_begin();
     #endif
 
+    systemInit();
+
+    initializePins();
     initializeRadio();
-    
-    pinMode(LED, OUTPUT);
 }
 
 void loop(void) {
@@ -54,18 +57,20 @@ void loop(void) {
                 printf("Secret matches\r\n");
             #endif
 
-            if(message[PAYLOAD_SIZE - 1] == '0'){ //LOCK
-                state = 0;
-                #ifdef DEBUG
-                    printf("State 0\r\n");
-                #endif
-            }
-            else if(message[PAYLOAD_SIZE - 1] == '1'){ //UNLOCK
-                state = 1;
-                #ifdef DEBUG
-                    printf("State 1\r\n");
-                #endif
-            }
+            not_received = 0;
+            state = 1;
+        }
+    }
+    else{
+        #ifdef DEBUG
+            printf("Radio NOT available %i %i\r\n", not_received, state);
+        #endif  
+        
+        if(not_received > NOT_RECEIVED_AMOUNT){
+            state = 0;
+        }
+        else{
+            not_received++;
         }
     }
 
@@ -76,7 +81,12 @@ void loop(void) {
         digitalWrite(LED, LOW);
     }
 
-    delay(100);
+    delay(1000);
+}
+
+void initializePins(){
+    pinMode(LED, OUTPUT);
+    digitalWrite(LED, HIGH);
 }
 
 void initializeRadio(){
@@ -86,4 +96,22 @@ void initializeRadio(){
     radio.openReadingPipe(1, pipe);
     radio.setPALevel(RF24_PA_HIGH);
     radio.startListening();
+}
+
+void systemInit(){    
+    ADCSRA &= ~(1 << 7); // Disable ADC
+    ACSR |= (1 << 7); //Disable comparator
+
+    PRR |= (1 << 7) | // Disable TWI
+        (1 << 6) | // Disable Timer2
+        (1 << 3) | // Disable Timer1
+        #ifndef DEBUG
+            (1 << 1) | // Disable UART
+        #endif
+        1; // Disable ADC
+
+    // Enable pull-ups on all port inputs
+    PORTB = 0xff;
+    PORTC = 0xff;
+    PORTD = 0xff;
 }

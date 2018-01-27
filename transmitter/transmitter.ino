@@ -19,7 +19,7 @@
 #define PAYLOAD_SIZE   32
 
 // Constants
-const char secret[32] = "77da4ba6-fdf2-11e7-8be5-0ed5fff"; // must be unique for every TX-RX pair
+const char secret[32] = "77da4ba6-fdf2-11e7-8be5-0ed5ffff"; // must be unique for every TX-RX pair
 const uint64_t pipe = 0xE8E8F0F0E1LL;
 
 RF24 radio(CE, CSN);
