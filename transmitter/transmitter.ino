@@ -8,7 +8,7 @@
 
 #define DEBUG
 
-#define LED_NORMAL         8
+#define LED         8
 
 // NRF24l01
 #define CE          9  // Toggle between transmit (TX), receive (RX), standby, and power-down mode
@@ -18,7 +18,7 @@
 #define PAYLOAD_SIZE   32
 
 // Constants
-const char secret[32] = "77da4ba6-fdf2-11e7-8be5-0ed5ffff"; // must be unique for every TX-RX pair
+const char secret[32] = "77da4ba6-fdf2-11e7-8be5-0ed5fff"; // must be unique for every TX-RX pair
 const uint64_t pipe = 0xE8E8F0F0E1LL;
 
 RF24 radio(CE, CSN);
@@ -29,7 +29,7 @@ void setup(void) {
         printf_begin();
     #endif
 
-    disableNotNeeded();
+    systemInit();
 
     initializePins();
     initializeRadio();
@@ -57,13 +57,16 @@ void initializeRadio(){
     radio.stopListening();
 }
 
-void disableNotNeeded(){
-    // Disable ADC
-    ADCSRA &= ~(1 << 7);
+void systemInit(){    
+    ADCSRA &= ~(1 << 7); // Disable ADC
+    ACSR |= (1 << 7); //Disable comparator
+
     PRR |= (1 << 7) | // Disable TWI
         (1 << 6) | // Disable Timer2
         (1 << 3) | // Disable Timer1
-        (1 << 1) | // Disable UART
+        #ifndef DEBUG
+            (1 << 1) | // Disable UART
+        #endif
         1; // Disable ADC
 
     // Enable pull-ups on all port inputs
