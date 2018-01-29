@@ -25,7 +25,7 @@
 const uint64_t pipe = 0xE8E8F0F0E1LL;
 char secret[32] = "77da4ba6-fdf2-11e7-8be5-0ed5ffff";
 
-uint8_t locked = true; // 0- locked, 1- unlocked
+uint8_t locked = true;
 uint8_t signalLost = 0;
 
 RF24 radio(CE, CSN);
@@ -67,7 +67,10 @@ void loop(void) {
         }
     } else {
         #ifdef DEBUG
-            printf("Signal lost. Retries: %i . Is locked: %i\r\n", signalLost, locked);
+            printf("Signal lost. Retries: %i . Is locked: %i\r\n",
+                signalLost,
+                locked
+            );
         #endif  
         
         if (signalLost >= SIGNAL_LOST_RETRIES){
