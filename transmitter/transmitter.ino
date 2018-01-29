@@ -46,12 +46,12 @@ void loop(void) {
     digitalWrite(LED, HIGH);
 }
 
-void initializePins(){
+void initializePins() {
     pinMode(LED, OUTPUT);
     digitalWrite(LED, HIGH);
 }
 
-void initializeRadio(){
+void initializeRadio() {
     radio.begin();
     radio.setDataRate(RF24_250KBPS);
     radio.setRetries(3,5); // delay, count
@@ -61,7 +61,7 @@ void initializeRadio(){
     radio.stopListening();
 }
 
-void systemInit(){    
+void systemInit() {    
     ADCSRA &= ~(1 << 7); // Disable ADC
     ACSR |= (1 << 7); // Disable comparator
 
@@ -79,7 +79,7 @@ void systemInit(){
     PORTD = 0xff;
 }
 
-void goToSleep(){
+void goToSleep() {
     SMCR |= (1 << 2); // power down mode
     SMCR |= 1; // enable sleep
 

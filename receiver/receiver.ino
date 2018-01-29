@@ -8,20 +8,25 @@
 
 #define DEBUG
 
-#define LED 2
+// User Interface
+#define POWER_TOGGLE_BUTTON   6
+#define SIGNAL_LOSS_INDICATOR 8
+
+#define RELAY                 7
 
 // NRF24l01
 #define CE          9  // Toggle between transmit (TX), receive (RX), standby, and power-down mode
 #define CSN         10 // SPI chip select 
 
-#define PAYLOAD_SIZE 32
-#define NOT_RECEIVED_AMOUNT 10
+#define PAYLOAD_SIZE        32
+#define SIGNAL_LOST_RETRIES 10
+#define SLEEP_TIME_MS       500
 
 const uint64_t pipe = 0xE8E8F0F0E1LL;
 char secret[32] = "77da4ba6-fdf2-11e7-8be5-0ed5ffff";
 
-uint8_t state = 0; // 0- locked, 1- unlocked
-uint8_t not_received = 0;
+uint8_t locked = true; // 0- locked, 1- unlocked
+uint8_t signalLost = 0;
 
 RF24 radio(CE, CSN);
 
@@ -51,45 +56,47 @@ void loop(void) {
             printf("%s\r\n", message);
         #endif
 
-        if(strncmp(secret, message, sizeof(secret)) == 0){ //Secret matches
+        if (strncmp(secret, message, sizeof(secret)) == 0) { // Secret matches
 
             #ifdef DEBUG
                 printf("Secret matches\r\n");
             #endif
 
-            not_received = 0;
-            state = 1;
+            signalLost = 0;
+            locked = false;
         }
-    }
-    else{
+    } else {
         #ifdef DEBUG
-            printf("Radio NOT available %i %i\r\n", not_received, state);
+            printf("Signal lost. Retries: %i . Is locked: %i\r\n", signalLost, locked);
         #endif  
         
-        if(not_received > NOT_RECEIVED_AMOUNT){
-            state = 0;
-        }
-        else{
-            not_received++;
+        if (signalLost >= SIGNAL_LOST_RETRIES){
+            locked = true;
+        } else {
+            signalLost++;
         }
     }
 
-    if(state == 0){
-        digitalWrite(LED, HIGH);
-    }
-    else if(state == 1){
-        digitalWrite(LED, LOW);
+    if (locked){
+        digitalWrite(SIGNAL_LOSS_INDICATOR, HIGH);
+    } else if (!locked){
+        digitalWrite(SIGNAL_LOSS_INDICATOR, LOW);
     }
 
-    delay(1000);
+    delay(SLEEP_TIME_MS);
 }
 
-void initializePins(){
-    pinMode(LED, OUTPUT);
-    digitalWrite(LED, HIGH);
+void initializePins() {
+    pinMode(SIGNAL_LOSS_INDICATOR, OUTPUT);
+    digitalWrite(SIGNAL_LOSS_INDICATOR, HIGH); // On is LOW
+
+    pinMode(POWER_TOGGLE_BUTTON, INPUT);
+
+    pinMode(RELAY, OUTPUT);
+    digitalWrite(RELAY, HIGH); // On is LOW
 }
 
-void initializeRadio(){
+void initializeRadio() {
     radio.begin();
     radio.setDataRate(RF24_250KBPS);
     radio.setPayloadSize(PAYLOAD_SIZE);
@@ -98,9 +105,9 @@ void initializeRadio(){
     radio.startListening();
 }
 
-void systemInit(){    
+void systemInit() {    
     ADCSRA &= ~(1 << 7); // Disable ADC
-    ACSR |= (1 << 7); //Disable comparator
+    ACSR |= (1 << 7); // Disable comparator
 
     PRR |= (1 << 7) | // Disable TWI
         (1 << 6) | // Disable Timer2
