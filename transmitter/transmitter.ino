@@ -63,7 +63,7 @@ void initializeRadio(){
 
 void systemInit(){    
     ADCSRA &= ~(1 << 7); // Disable ADC
-    ACSR |= (1 << 7); //Disable comparator
+    ACSR |= (1 << 7); // Disable comparator
 
     PRR |= (1 << 7) | // Disable TWI
         (1 << 6) | // Disable Timer2

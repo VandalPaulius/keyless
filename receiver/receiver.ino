@@ -1,5 +1,5 @@
 // moto-alarm Receiver
-//Used example from http://forum.arduino.cc/index.php?topic=421081
+// Used example from http://forum.arduino.cc/index.php?topic=421081
 
 #include  <SPI.h>
 #include "nRF24L01.h"
@@ -10,9 +10,9 @@
 
 #define LED 2
 
-//NRF24l01
-#define CE          9  //Toggle between transmit (TX), receive (RX), standby, and power-down mode
-#define CSN         10 //SPI chip select 
+// NRF24l01
+#define CE          9  // Toggle between transmit (TX), receive (RX), standby, and power-down mode
+#define CSN         10 // SPI chip select 
 
 #define PAYLOAD_SIZE 32
 #define NOT_RECEIVED_AMOUNT 10
@@ -20,7 +20,7 @@
 const uint64_t pipe = 0xE8E8F0F0E1LL;
 char secret[32] = "77da4ba6-fdf2-11e7-8be5-0ed5ffff";
 
-uint8_t state = 0; //0- locked, 1- unlocked
+uint8_t state = 0; // 0- locked, 1- unlocked
 uint8_t not_received = 0;
 
 RF24 radio(CE, CSN);
