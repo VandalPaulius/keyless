@@ -33,7 +33,7 @@ const uint64_t pipe = 0xE8E8F0F0E1LL;
 char secret[32] = "77da4ba6-fdf2-11e7-8be5-0ed5ffff";
 
 bool locked = true;
-bool preparingToLock = false;
+// bool preparingToLock = false;
 uint8_t signalLostCounter = 0; // TODO check for overflow values
 
 RF24 radio(CE, CSN);
@@ -53,7 +53,13 @@ void setup(void) {
 
 void loop(void) {
     //time.Timeout_manager();
-    // toggleLocks();
+    toggleLocks(locked); // ERROR: turns relay all the time
+    #ifdef DEBUG
+        printf("Is locked: %i\r\n",
+            locked
+        );
+        delay(10);
+    #endif
 
     if (locked) {
         // time.Timer(
@@ -82,14 +88,12 @@ void loop(void) {
     if (!locked) {
         bool connected = checkBeacon(signalLostCounter, locked, secret);
 
-        // if (hasConnection) {
-            
-        // } else {
-        //     // blink
-        // }
-
         if (!connected) {
             // blink
+            #ifdef DEBUG
+                printf("!connected\r\n");
+                delay(5);
+            #endif  
             if (signalLostCounter >= DISCONNECTED_BEACON_LOCK_THRESHOLD) {
                 locked = true;
                 powerDown(CHECK_BEACON_LOCKED);
@@ -135,7 +139,7 @@ void initializePins() {
     pinMode(POWER_TOGGLE_BUTTON, INPUT);
 
     pinMode(RELAY, OUTPUT);
-    digitalWrite(RELAY, HIGH); // On is LOW
+    digitalWrite(RELAY, HIGH); // LOW = on, HIGH = off
 }
 
 void initializeRadio() {
@@ -219,4 +223,16 @@ bool checkBeacon(uint8_t &signalLostCounter, bool &locked, char secret[]) {
 
 void powerDown(period_t period) {
     LowPower.powerDown(period, ADC_OFF, BOD_OFF);
+}
+
+void toggleLocks(bool locked) {
+    const bool lockedPrevious;
+    
+    if (lockedPrevious != locked) {
+        if (locked) {
+            digitalWrite(RELAY, LOW);
+        } else {
+            digitalWrite(RELAY, HIGH);
+        }
+    }
 }
