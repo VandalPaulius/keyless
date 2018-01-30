@@ -213,6 +213,10 @@ void loop(void) {
         //     );
         //     delay(10);
         // #endif
+
+        if (prepareToLock) {
+            toggleSignalLossIndicator();
+        }
     }
 
     // #ifdef DEBUG
@@ -264,6 +268,11 @@ void loop(void) {
         );
         delay(10);
     #endif
+
+    if (!prepareToLock) {
+        toggleLocks(lock); // ERROR: turns relay all the time
+        toggleSignalLossIndicator(false);
+    }
 
     toggleLocks(lock);
     checkRetryOverflow(signalLostCounter);
