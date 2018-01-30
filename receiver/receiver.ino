@@ -34,13 +34,19 @@ char secret[32] = "77da4ba6-fdf2-11e7-8be5-0ed5ffff"; // line ending char missin
 
 bool lock = true;
 bool preparingToLock = false;
-uint8_t signalLostCounter = 0; // TODO check for overflow values
+unsigned long signalLostCounter = DISCONNECTED_BEACON_LOCK_THRESHOLD + 1;
 //bool signalLossIndicatorState = false;
 
 //bool signalLossIndicatorState = false;
 
 RF24 radio(CE, CSN);
 Time time;
+
+void checkRetryOverflow(unsigned long &counter) {
+    if (counter == 4294967294) {
+        counter = DISCONNECTED_BEACON_LOCK_THRESHOLD + 1;
+    }
+}
 
 void toggleSignalLossIndicator(bool leaveOn = true) {
     static bool isOnPrev = false;
@@ -114,16 +120,19 @@ void loop(void) {
     if (lock && !preparingToLock) {
         powerDown(CHECK_BEACON_LOCKED);
     } else {
-        powerDown(CHECK_BEACON_UNLOCKED);
-        //check more frequent
+        powerDown(CHECK_BEACON_UNLOCKED); //check more frequently
     }
 
-    checkBeacon(signalLostCounter, lock, secret);
+    bool gotSignal = checkBeacon(signalLostCounter, lock, secret);
 
     if (!lock) {
+        preparingToLock = false;
+
         if (signalLostCounter > DISCONNECTED_BEACON_LOCK_THRESHOLD_TOLERANCE) {
             preparingToLock = true;
-        }
+        } // else {
+        //     preparingToLock = false;
+        // }
 
         if (signalLostCounter >= DISCONNECTED_BEACON_LOCK_THRESHOLD) {
             preparingToLock = false;
@@ -148,6 +157,8 @@ void loop(void) {
         toggleLocks(lock); // ERROR: turns relay all the time
         toggleSignalLossIndicator(false);
     }
+
+    checkRetryOverflow(signalLostCounter);
     // end
 
 
@@ -286,7 +297,7 @@ void indicateSignalLoss() {
 //     // }
 // }
 
-bool checkBeacon(uint8_t &retryCounter, bool &lock, char secret[]) {
+bool checkBeacon(unsigned long &retryCounter, bool &lock, char secret[]) {
     if (radio.available()) {
         #ifdef DEBUG
             printf("Radio available\r\n");
