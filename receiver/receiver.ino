@@ -25,9 +25,9 @@
 
 #define CHECK_BEACON_LOCKED SLEEP_500MS
 #define CHECK_BEACON_UNLOCKED SLEEP_120MS
-// 1 = how many times transmitter sends per second
 #define DISCONNECTED_BEACON_RETRY_THRESHOLD (1 * 1000 / 120) * 5 // = 8.333 * 5
-    // ( 1 second / CHECK_BEACON_UNLOCKED sleep time ) * how many seconds
+    // ( 1 second (how many times transmitter sends per second) /
+    // / CHECK_BEACON_UNLOCKED sleep time ) * how many seconds
 #define DISCONNECTED_BEACON_RETRY_THRESHOLD_TOLERANCE (1 * 1000 / 120) * 1.09
     // 8.333 -> 9
 
@@ -37,6 +37,7 @@ char secret[32] = "77da4ba6-fdf2-11e7-8be5-0ed5ffff"; // line ending char
 
 bool lock = true;
 bool prepareToLock = false;
+bool powerUp = false;
 unsigned int signalLostCounter = DISCONNECTED_BEACON_RETRY_THRESHOLD + 1;
 
 RF24 radio(CE, CSN);
@@ -50,6 +51,89 @@ RF24 radio(CE, CSN);
         }
     }
 #endif
+
+void initializePins() {
+    pinMode(SIGNAL_LOSS_INDICATOR, OUTPUT);
+    pinMode(POWER_TOGGLE_BUTTON, INPUT);
+    pinMode(RELAY, OUTPUT);
+}
+
+void initializeRadio() {
+    radio.begin();
+    radio.setDataRate(RF24_250KBPS);
+    radio.setPayloadSize(PAYLOAD_SIZE);
+    radio.openReadingPipe(1, pipe);
+    radio.setPALevel(RF24_PA_HIGH);
+    radio.startListening();
+}
+
+void systemInit() {    
+    ADCSRA &= ~(1 << 7); // Disable ADC
+    ACSR |= (1 << 7); // Disable comparator
+
+    PRR |= (1 << 7) | // Disable TWI
+        (1 << 6) | // Disable Timer2
+        (1 << 3) | // Disable Timer1
+        #ifndef DEBUG
+            (1 << 1) | // Disable UART
+        #endif
+        1; // Disable ADC
+
+    // Enable pull-ups on all port inputs
+    PORTB = 0xff;
+    PORTC = 0xff;
+    PORTD = 0xff;
+}
+
+void pciSetup(byte pin){
+    *digitalPinToPCMSK(pin) |= bit (digitalPinToPCMSKbit(pin));  // enable pin
+    PCIFR  |= bit (digitalPinToPCICRbit(pin)); // clear any outstanding interrupt
+    PCICR  |= bit (digitalPinToPCICRbit(pin)); // enable interrupt for the group
+}
+
+void attachInterrupts() {
+    pciSetup(POWER_TOGGLE_BUTTON);
+}
+
+ISR(PCINT2_vect) { // handle pin change interrupt
+    if (digitalRead(POWER_TOGGLE_BUTTON) && !lock) {
+        powerUp = !powerUp;
+    }
+}
+
+bool checkBeacon(unsigned int &retryCounter, bool &lock, char secret[]) {
+    if (radio.available()) {
+        #ifdef DEBUG
+            printf("Radio available\r\n");
+        #endif
+        char message[PAYLOAD_SIZE + 1];
+        message[PAYLOAD_SIZE] = '\0';
+
+        radio.read(message, PAYLOAD_SIZE);
+
+        #ifdef DEBUG
+            printf("Secret: %s Message: %s\r\n", secret, message);
+        #endif
+
+        if (strncmp(secret, message, sizeof(secret)) == 0) { // Secret matches
+
+            #ifdef DEBUG
+                printf("Secret matches\r\n");
+            #endif
+
+            retryCounter = 0;
+            lock = false;
+            return true;
+        }
+    }
+
+    retryCounter++;
+}
+
+void powerDown(period_t period) {
+    LowPower.powerDown(period, ADC_OFF, BOD_OFF);
+}
+
 
 void checkRetryOverflow(unsigned int &counter) {
     if (counter == 65534) {
@@ -101,6 +185,7 @@ void setup(void) {
 
     initializePins();
     initializeRadio();
+    attachInterrupts();
 }
 
 void loop(void) {
@@ -124,93 +209,33 @@ void loop(void) {
         if (signalLostCounter >= DISCONNECTED_BEACON_RETRY_THRESHOLD) {
             lock = true;
             prepareToLock = false;
+            powerUp = false;
         }
 
-        if (prepareToLock) {
+        if (prepareToLock && powerUp) {
             toggleSignalLossIndicator();
         }
     }
 
     #ifdef DEBUG
-        printf("Signal lost. Retries: %i. Is locked: %i. prepareToLock: %i\r\n",
+        printf("Signal lost. Retries: %i. Is locked: %i. prepareToLock: %i. powerUp: %i\r\n",
             signalLostCounter,
             convB(lock),
-            convB(prepareToLock)
+            convB(prepareToLock),
+            convB(powerUp)
         );
         delay(10);
     #endif
 
     if (!prepareToLock) {
-        toggleLocks(lock);
         toggleSignalLossIndicator(false);
     }
 
-    toggleLocks(lock);
-    checkRetryOverflow(signalLostCounter);
-}
-
-void initializePins() {
-    pinMode(SIGNAL_LOSS_INDICATOR, OUTPUT);
-    pinMode(POWER_TOGGLE_BUTTON, INPUT);
-    pinMode(RELAY, OUTPUT);
-}
-
-void initializeRadio() {
-    radio.begin();
-    radio.setDataRate(RF24_250KBPS);
-    radio.setPayloadSize(PAYLOAD_SIZE);
-    radio.openReadingPipe(1, pipe);
-    radio.setPALevel(RF24_PA_HIGH);
-    radio.startListening();
-}
-
-void systemInit() {    
-    ADCSRA &= ~(1 << 7); // Disable ADC
-    ACSR |= (1 << 7); // Disable comparator
-
-    PRR |= (1 << 7) | // Disable TWI
-        (1 << 6) | // Disable Timer2
-        (1 << 3) | // Disable Timer1
-        #ifndef DEBUG
-            (1 << 1) | // Disable UART
-        #endif
-        1; // Disable ADC
-
-    // Enable pull-ups on all port inputs
-    PORTB = 0xff;
-    PORTC = 0xff;
-    PORTD = 0xff;
-}
-
-bool checkBeacon(unsigned int &retryCounter, bool &lock, char secret[]) {
-    if (radio.available()) {
-        #ifdef DEBUG
-            printf("Radio available\r\n");
-        #endif
-        char message[PAYLOAD_SIZE + 1];
-        message[PAYLOAD_SIZE] = '\0';
-
-        radio.read(message, PAYLOAD_SIZE);
-
-        #ifdef DEBUG
-            printf("Secret: %s Message: %s\r\n", secret, message);
-        #endif
-
-        if (strncmp(secret, message, sizeof(secret)) == 0) { // Secret matches
-
-            #ifdef DEBUG
-                printf("Secret matches\r\n");
-            #endif
-
-            retryCounter = 0;
-            lock = false;
-            return true;
-        }
+    if (powerUp && !lock) {
+        toggleLocks(false);  
+    } else {
+        toggleLocks(true);
     }
 
-    retryCounter++;
-}
-
-void powerDown(period_t period) {
-    LowPower.powerDown(period, ADC_OFF, BOD_OFF);
+    checkRetryOverflow(signalLostCounter);
 }
