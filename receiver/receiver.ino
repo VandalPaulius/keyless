@@ -24,20 +24,57 @@
 #define SIGNAL_LOST_RETRIES 10
 //#define CHECK_BEACON_LOCKED 500
 #define CHECK_BEACON_LOCKED SLEEP_500MS
-#define CHECK_BEACON_UNLOCKED SLEEP_250MS
-
-#define CHECK_BEACON_UNLOCKED_DISCONNECTED SLEEP_60MS
-#define DISCONNECTED_BEACON_LOCK_THRESHOLD 60
+#define CHECK_BEACON_UNLOCKED SLEEP_120MS
+// 1 = how many times transmitter sends per second
+#define DISCONNECTED_BEACON_LOCK_THRESHOLD (1 * 1000 / 120) * 5 // = 8.333 * 5  // ( 1 second / CHECK_BEACON_UNLOCKED sleep time ) * how many seconds
+#define DISCONNECTED_BEACON_LOCK_THRESHOLD_TOLERANCE (1 * 1000 / 120) * 1.09 // 8.333 -> 9
 
 const uint64_t pipe = 0xE8E8F0F0E1LL;
-char secret[32] = "77da4ba6-fdf2-11e7-8be5-0ed5ffff";
+char secret[32] = "77da4ba6-fdf2-11e7-8be5-0ed5ffff"; // line ending char missing, thus compiler complaining
 
-bool locked = true;
-// bool preparingToLock = false;
+bool lock = true;
+bool preparingToLock = false;
 uint8_t signalLostCounter = 0; // TODO check for overflow values
+//bool signalLossIndicatorState = false;
+
+//bool signalLossIndicatorState = false;
 
 RF24 radio(CE, CSN);
 Time time;
+
+void toggleSignalLossIndicator(bool leaveOn = true) {
+    static bool isOnPrev = false;
+    if (!leaveOn) {
+        isOnPrev = leaveOn;
+        digitalWrite(SIGNAL_LOSS_INDICATOR, HIGH); // HIGH = off
+    } else {
+        if (!isOnPrev) {
+            digitalWrite(SIGNAL_LOSS_INDICATOR, LOW); // LOW = on
+        } else {
+            digitalWrite(SIGNAL_LOSS_INDICATOR, HIGH); // HIGH = off
+        }
+
+        isOnPrev = !isOnPrev;
+    }
+}
+
+void toggleLocks(bool lock, bool init = false) {
+    static bool lockPrevious = true;
+
+    #ifdef DEBUG
+        printf("In Relay %i\r\n", lock);
+    #endif
+
+    if (lockPrevious != lock || init) {
+        if (lock) {
+            digitalWrite(RELAY, HIGH); // HIGH = off
+        } else {
+            digitalWrite(RELAY, LOW); // LOW = on
+        }
+
+        lockPrevious = lock;
+    }
+}
 
 void setup(void) {
     #ifdef DEBUG
@@ -49,97 +86,155 @@ void setup(void) {
 
     initializePins();
     initializeRadio();
+
+    //toggleLocks(true, true);
 }
 
+// void toggleLocks(bool lock = true) {
+//     static bool lockPrevious = true;
+
+//     #ifdef DEBUG
+//         printf("In Relay %i\r\n", lock);
+//     #endif
+
+//     if (lockPrevious != lock) {
+//         if (lock) {
+//             digitalWrite(RELAY, HIGH); // HIGH = off
+//         } else {
+//             digitalWrite(RELAY, LOW); // LOW = on
+//         }
+
+//         lockPrevious = lock;
+//     }
+// }
+
+
+
 void loop(void) {
-    //time.Timeout_manager();
-    toggleLocks(locked); // ERROR: turns relay all the time
-    #ifdef DEBUG
-        printf("Is locked: %i\r\n",
-            locked
-        );
-        delay(10);
-    #endif
-
-    if (locked) {
-        // time.Timer(
-        //     []() {
-        //         checkBeacon(signalLostCounter);
-        //     },
-        //     0,
-        //     SLEEP_TIME_LOCKED_MS,
-        //     1000
-        // );
-        checkBeacon(signalLostCounter, locked, secret);
-
-        if (locked) {
-            powerDown(CHECK_BEACON_LOCKED);
-            loop();
-        } else {
-
-        }
-        // printf("Signal lost. Retries: %i . Is locked: %i\r\n",
-        //     signalLostCounter,
-        //     locked
-        // );
-        
-    }
-    
-    if (!locked) {
-        bool connected = checkBeacon(signalLostCounter, locked, secret);
-
-        if (!connected) {
-            // blink
-            #ifdef DEBUG
-                printf("!connected\r\n");
-                delay(5);
-            #endif  
-            if (signalLostCounter >= DISCONNECTED_BEACON_LOCK_THRESHOLD) {
-                locked = true;
-                powerDown(CHECK_BEACON_LOCKED);
-            } else {
-                powerDown(CHECK_BEACON_UNLOCKED_DISCONNECTED);
-            }
-            signalLostCounter++;
-            loop();
-        }
-
+    if (lock && !preparingToLock) {
+        powerDown(CHECK_BEACON_LOCKED);
+    } else {
         powerDown(CHECK_BEACON_UNLOCKED);
-        loop();
+        //check more frequent
     }
+
+    checkBeacon(signalLostCounter, lock, secret);
+
+    if (!lock) {
+        if (signalLostCounter > DISCONNECTED_BEACON_LOCK_THRESHOLD_TOLERANCE) {
+            preparingToLock = true;
+        }
+
+        if (signalLostCounter >= DISCONNECTED_BEACON_LOCK_THRESHOLD) {
+            preparingToLock = false;
+            lock = true;
+        }
+
+        if (preparingToLock) {
+            toggleSignalLossIndicator();
+        }
+    }
+
+    #ifdef DEBUG
+        printf("Signal lost. Retries: %i. Is locked: %i. PreparingToLock: %i\r\n",
+            signalLostCounter,
+            lock,
+            preparingToLock
+        );
+        delay(5);
+    #endif
     
-    // else {
-    //     #ifdef DEBUG
-    //         printf("Signal lost. Retries: %i . Is locked: %i\r\n",
-    //             signalLost,
-    //             locked
-    //         );
-    //     #endif  
-        
-    //     if (signalLost >= SIGNAL_LOST_RETRIES){
-    //         locked = true;
+    if (!preparingToLock) {
+        toggleLocks(lock); // ERROR: turns relay all the time
+        toggleSignalLossIndicator(false);
+    }
+    // end
+
+
+
+
+
+    
+
+    // if (locked) {
+    //     // time.Timer(
+    //     //     []() {
+    //     //         checkBeacon(signalLostCounter);
+    //     //     },
+    //     //     0,
+    //     //     SLEEP_TIME_LOCKED_MS,
+    //     //     1000
+    //     // );
+    //     checkBeacon(signalLostCounter, locked, secret);
+
+    //     if (locked) {
+    //         powerDown(CHECK_BEACON_LOCKED);
+    //         loop();
     //     } else {
-    //         signalLost++;
+
     //     }
+    //     // printf("Signal lost. Retries: %i . Is locked: %i\r\n",
+    //     //     signalLostCounter,
+    //     //     locked
+    //     // );
+        
     // }
+    
+    // if (!locked) {
+    //     bool connected = checkBeacon(signalLostCounter, locked, secret);
 
-    // if (locked){
-    //     digitalWrite(SIGNAL_LOSS_INDICATOR, HIGH);
-    // } else if (!locked){
-    //     digitalWrite(SIGNAL_LOSS_INDICATOR, LOW);
+    //     if (!connected) {
+    //         // blink
+    //         #ifdef DEBUG
+    //             printf("!connected\r\n");
+    //             delay(5);
+    //         #endif  
+    //         if (signalLostCounter >= DISCONNECTED_BEACON_LOCK_THRESHOLD) {
+    //             locked = true;
+    //             powerDown(CHECK_BEACON_LOCKED);
+    //         } else {
+    //             powerDown(CHECK_BEACON_UNLOCKED_DISCONNECTED);
+    //         }
+    //         signalLostCounter++;
+    //         loop();
+    //     }
+
+    //     powerDown(CHECK_BEACON_UNLOCKED);
+    //     loop();
     // }
+    
+//     // else {
+//     //     #ifdef DEBUG
+//     //         printf("Signal lost. Retries: %i . Is locked: %i\r\n",
+//     //             signalLost,
+//     //             locked
+//     //         );
+//     //     #endif  
+        
+//     //     if (signalLost >= SIGNAL_LOST_RETRIES){
+//     //         locked = true;
+//     //     } else {
+//     //         signalLost++;
+//     //     }
+//     // }
 
-    // delay(SLEEP_TIME_MS);
+//     // if (locked){
+//     //     digitalWrite(SIGNAL_LOSS_INDICATOR, HIGH);
+//     // } else if (!locked){
+//     //     digitalWrite(SIGNAL_LOSS_INDICATOR, LOW);
+//     // }
+
+//     // delay(SLEEP_TIME_MS);
 }
 
 void initializePins() {
     pinMode(SIGNAL_LOSS_INDICATOR, OUTPUT);
-    digitalWrite(SIGNAL_LOSS_INDICATOR, HIGH); // On is LOW
+    //digitalWrite(SIGNAL_LOSS_INDICATOR, HIGH); // On is LOW
 
     pinMode(POWER_TOGGLE_BUTTON, INPUT);
 
     pinMode(RELAY, OUTPUT);
-    digitalWrite(RELAY, HIGH); // LOW = on, HIGH = off
+    //digitalWrite(RELAY, HIGH); // LOW = on, HIGH = off
 }
 
 void initializeRadio() {
@@ -191,7 +286,7 @@ void indicateSignalLoss() {
 //     // }
 // }
 
-bool checkBeacon(uint8_t &signalLostCounter, bool &locked, char secret[]) {
+bool checkBeacon(uint8_t &retryCounter, bool &lock, char secret[]) {
     if (radio.available()) {
         #ifdef DEBUG
             printf("Radio available\r\n");
@@ -211,28 +306,22 @@ bool checkBeacon(uint8_t &signalLostCounter, bool &locked, char secret[]) {
                 printf("Secret matches\r\n");
             #endif
 
-            signalLostCounter = 0;
-            locked = false;
+            retryCounter = 0;
+            lock = false;
             return true;
         }
-        return false;
-    } else {
-        return false;
-    }
+        //return false;
+    } //else {
+       // return false;
+    //}
+
+    retryCounter++;
 }
 
 void powerDown(period_t period) {
     LowPower.powerDown(period, ADC_OFF, BOD_OFF);
 }
 
-void toggleLocks(bool locked) {
-    const bool lockedPrevious;
-    
-    if (lockedPrevious != locked) {
-        if (locked) {
-            digitalWrite(RELAY, LOW);
-        } else {
-            digitalWrite(RELAY, HIGH);
-        }
-    }
-}
+// void toggleSignalLossIndicator(bool isOff = false) {
+
+// }
