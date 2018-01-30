@@ -25,9 +25,9 @@
 
 #define CHECK_BEACON_LOCKED SLEEP_500MS
 #define CHECK_BEACON_UNLOCKED SLEEP_120MS
-// 1 = how many times transmitter sends per second
 #define DISCONNECTED_BEACON_RETRY_THRESHOLD (1 * 1000 / 120) * 5 // = 8.333 * 5
-    // ( 1 second / CHECK_BEACON_UNLOCKED sleep time ) * how many seconds
+    // ( 1 second (how many times transmitter sends per second) /
+    // / CHECK_BEACON_UNLOCKED sleep time ) * how many seconds
 #define DISCONNECTED_BEACON_RETRY_THRESHOLD_TOLERANCE (1 * 1000 / 120) * 1.09
     // 8.333 -> 9
 
@@ -96,7 +96,7 @@ void attachInterrupts() {
 }
 
 ISR(PCINT2_vect) { // handle pin change interrupt
-    if (digitalRead(POWER_TOGGLE_BUTTON)) {
+    if (digitalRead(POWER_TOGGLE_BUTTON) && !lock) {
         powerUp = !powerUp;
     }
 }
@@ -212,7 +212,7 @@ void loop(void) {
             powerUp = false;
         }
 
-        if (prepareToLock) {
+        if (prepareToLock && powerUp) {
             toggleSignalLossIndicator();
         }
     }
@@ -236,6 +236,6 @@ void loop(void) {
     } else {
         toggleLocks(true);
     }
-    //toggleLocks(lock);
+
     checkRetryOverflow(signalLostCounter);
 }
