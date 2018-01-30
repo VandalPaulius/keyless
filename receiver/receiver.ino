@@ -11,10 +11,11 @@
 #define DEBUG
 
 // User Interface
-#define POWER_TOGGLE_BUTTON   6
-#define SIGNAL_LOSS_INDICATOR 8
+#define BEACON_NEARBY_INDICATOR 5
+#define SIGNAL_LOSS_INDICATOR   6
+#define POWER_TOGGLE_BUTTON     7
 
-#define RELAY                 7
+#define RELAY                   8
 
 // NRF24l01
 #define CE          9  // Toggle between transmit (TX), receive (RX), standby
@@ -42,18 +43,9 @@ unsigned int signalLostCounter = DISCONNECTED_BEACON_RETRY_THRESHOLD + 1;
 
 RF24 radio(CE, CSN);
 
-#ifdef DEBUG
-    int convB(bool value) {
-        if (value == true) {
-            return 1;
-        } else {
-            return 0;
-        }
-    }
-#endif
-
 void initializePins() {
     pinMode(SIGNAL_LOSS_INDICATOR, OUTPUT);
+    pinMode(BEACON_NEARBY_INDICATOR, OUTPUT);
     pinMode(POWER_TOGGLE_BUTTON, INPUT);
     pinMode(RELAY, OUTPUT);
 }
@@ -157,6 +149,19 @@ void toggleSignalLossIndicator(bool leaveOn = true) {
     }
 }
 
+void toggleBeaconNearbyIndicator(bool leaveOn = true) {
+    static bool isOnPrev = false;
+ 
+    if (!leaveOn) {
+        isOnPrev = leaveOn;
+        digitalWrite(BEACON_NEARBY_INDICATOR, HIGH); // HIGH = off
+    } else if (isOnPrev != leaveOn) {
+        digitalWrite(BEACON_NEARBY_INDICATOR, LOW); // LOW = on
+
+        isOnPrev = leaveOn;
+    }
+}
+
 void toggleLocks(bool lock, bool init = false) {
     static bool lockPrevious = true;
 
@@ -202,6 +207,8 @@ void loop(void) {
     }
 
     if (!lock) {
+        toggleBeaconNearbyIndicator();
+
         if (signalLostCounter > DISCONNECTED_BEACON_RETRY_THRESHOLD_TOLERANCE) {
             prepareToLock = true;
         }
@@ -217,18 +224,23 @@ void loop(void) {
         }
     }
 
-    #ifdef DEBUG
-        printf("Signal lost. Retries: %i. Is locked: %i. prepareToLock: %i. powerUp: %i\r\n",
+     #ifdef DEBUG
+        printf("Signal lost. Retries: %i. Is locked: %i. prepareToLock: %i. powerUp: %i, gotSignal: %i\r\n",
             signalLostCounter,
-            convB(lock),
-            convB(prepareToLock),
-            convB(powerUp)
+            lock,
+            prepareToLock,
+            powerUp,
+            gotSignal
         );
         delay(10);
     #endif
 
     if (!prepareToLock) {
         toggleSignalLossIndicator(false);
+    }
+
+    if (lock) {
+        toggleBeaconNearbyIndicator(false);
     }
 
     if (powerUp && !lock) {
