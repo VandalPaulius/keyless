@@ -33,17 +33,28 @@ const uint64_t pipe = 0xE8E8F0F0E1LL;
 char secret[32] = "77da4ba6-fdf2-11e7-8be5-0ed5ffff"; // line ending char missing, thus compiler complaining
 
 bool lock = true;
-bool preparingToLock = false;
-unsigned long signalLostCounter = DISCONNECTED_BEACON_LOCK_THRESHOLD + 1;
+bool prepareToLock = false;
+unsigned int signalLostCounter = DISCONNECTED_BEACON_LOCK_THRESHOLD + 1;
+//int signalLostCounter = DISCONNECTED_BEACON_LOCK_THRESHOLD + 1;
 //bool signalLossIndicatorState = false;
 
 //bool signalLossIndicatorState = false;
 
 RF24 radio(CE, CSN);
-Time time;
+//Time time;
 
-void checkRetryOverflow(unsigned long &counter) {
-    if (counter == 4294967294) {
+#ifdef DEBUG
+    int convB(bool value) {
+        if (value == true) {
+            return 1;
+        } else {
+            return 0;
+        }
+    }
+#endif
+
+void checkRetryOverflow(unsigned int &counter) {
+    if (counter == 65534) {
         counter = DISCONNECTED_BEACON_LOCK_THRESHOLD + 1;
     }
 }
@@ -93,7 +104,16 @@ void setup(void) {
     initializePins();
     initializeRadio();
 
-    //toggleLocks(true, true);
+    // #ifdef DEBUG
+    //     printf("setup Signal lost. Retries: %i. Is locked: %i. prepareToLock: %i\r\n",
+    //         signalLostCounter,
+    //         convB(lock),
+    //         convB(prepareToLock)
+    //     );
+    //     delay(10);
+    // #endif
+    // Serial.print("lock: ");
+    // Serial.write(lock);
 }
 
 // void toggleLocks(bool lock = true) {
@@ -115,50 +135,147 @@ void setup(void) {
 // }
 
 
-
+//void loop() {};
 void loop(void) {
-    if (lock && !preparingToLock) {
+    // #ifdef DEBUG
+    //     printf("0 Signal lost. Retries: %i. Is locked: %i. prepareToLock: %i\r\n",
+    //         signalLostCounter,
+    //         convB(lock),
+    //         convB(prepareToLock)
+    //     );
+    //     delay(10);
+    // #endif
+
+    if (lock && !prepareToLock) {
         powerDown(CHECK_BEACON_LOCKED);
     } else {
         powerDown(CHECK_BEACON_UNLOCKED); //check more frequently
     }
 
+    // #ifdef DEBUG
+    //     printf("1 Signal lost. Retries: %i. Is locked: %i. prepareToLock: %i\r\n",
+    //         signalLostCounter,
+    //         lock,
+    //         prepareToLock
+    //     );
+    //     delay(10);
+    // #endif
+
+
     bool gotSignal = checkBeacon(signalLostCounter, lock, secret);
 
-    if (!lock) {
-        preparingToLock = false;
 
+    // #ifdef DEBUG
+    //     printf("2 Signal lost. Retries: %i. Is locked: %i. prepareToLock: %i\r\n",
+    //         signalLostCounter,
+    //         convB(lock),
+    //         convB(prepareToLock)
+    //     );
+    //     delay(10);
+    // #endif
+
+    if (gotSignal) {
+        prepareToLock = false;
+    }
+
+    if (!lock) {
+        // #ifdef DEBUG
+        //     printf("3 Signal lost. Retries: %i. Is locked: %i. prepareToLock: %i\r\n",
+        //         signalLostCounter,
+        //         convB(lock),
+        //         convB(prepareToLock)
+        //     );
+        //     delay(10);
+        // #endif
         if (signalLostCounter > DISCONNECTED_BEACON_LOCK_THRESHOLD_TOLERANCE) {
-            preparingToLock = true;
-        } // else {
-        //     preparingToLock = false;
-        // }
+            prepareToLock = true;
+        }
+        
+        // #ifdef DEBUG
+        //     printf("4 Signal lost. Retries: %i. Is locked: %i. prepareToLock: %i\r\n",
+        //         signalLostCounter,
+        //         convB(lock),
+        //         convB(prepareToLock)
+        //     );
+        //     delay(10);
+        // #endif
 
         if (signalLostCounter >= DISCONNECTED_BEACON_LOCK_THRESHOLD) {
-            preparingToLock = false;
             lock = true;
+            prepareToLock = false;
         }
 
-        if (preparingToLock) {
-            toggleSignalLossIndicator();
-        }
+        // #ifdef DEBUG
+        //     printf("5 Signal lost. Retries: %i. Is locked: %i. prepareToLock: %i\r\n",
+        //         signalLostCounter,
+        //         convB(lock),
+        //         convB(prepareToLock)
+        //     );
+        //     delay(10);
+        // #endif
     }
+
+    // #ifdef DEBUG
+    //     printf("6 Signal lost. Retries: %i. Is locked: %i. prepareToLock: %i\r\n",
+    //         signalLostCounter,
+    //         convB(lock),
+    //         convB(prepareToLock)
+    //     );
+    //     delay(10);
+    // #endif
+    // if (!lock) {
+    //     preparingToLock = false;
+
+    //     if (signalLostCounter > DISCONNECTED_BEACON_LOCK_THRESHOLD_TOLERANCE) {
+    //         preparingToLock = true;
+    //     } // else {
+    //     //     preparingToLock = false;
+    //     // }
+
+    //     if (signalLostCounter >= DISCONNECTED_BEACON_LOCK_THRESHOLD) {
+    //         preparingToLock = false;
+    //         lock = true;
+    //     }
+
+    //     if (preparingToLock) {
+    //         toggleSignalLossIndicator();
+    //     }
+    // }
+
+    // #ifdef DEBUG
+    //     printf("Signal lost. Retries: %i. Is locked: %i. PreparingToLock: %i\r\n",
+    //         signalLostCounter,
+    //         lock,
+    //         preparingToLock
+    //     );
+    //     delay(5);
+    // #endif
+    
+    // if (!preparingToLock) {
+    //     toggleLocks(lock); // ERROR: turns relay all the time
+    //     toggleSignalLossIndicator(false);
+    // }
 
     #ifdef DEBUG
-        printf("Signal lost. Retries: %i. Is locked: %i. PreparingToLock: %i\r\n",
+        printf("Signal lost. Retries: %i. Is locked: %i. prepareToLock: %i\r\n",
             signalLostCounter,
-            lock,
-            preparingToLock
+            convB(lock),
+            convB(prepareToLock)
         );
-        delay(5);
+        delay(10);
     #endif
-    
-    if (!preparingToLock) {
-        toggleLocks(lock); // ERROR: turns relay all the time
-        toggleSignalLossIndicator(false);
-    }
 
+    toggleLocks(lock);
     checkRetryOverflow(signalLostCounter);
+
+    // #ifdef DEBUG
+    //         printf("7 Signal lost. Retries: %i. Is locked: %i. prepareToLock: %i\r\n",
+    //             signalLostCounter,
+    //             convB(lock),
+    //             convB(prepareToLock)
+    //         );
+    //         delay(10);
+    //     #endif
     // end
 
 
@@ -297,7 +414,7 @@ void indicateSignalLoss() {
 //     // }
 // }
 
-bool checkBeacon(unsigned long &retryCounter, bool &lock, char secret[]) {
+bool checkBeacon(unsigned int &retryCounter, bool &lock, char secret[]) {
     if (radio.available()) {
         #ifdef DEBUG
             printf("Radio available\r\n");
