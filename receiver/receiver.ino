@@ -8,7 +8,7 @@
 #include "lowPower.h"
 #include "Time.h"
 
-#define DEBUG
+//#define DEBUG
 
 // User Interface
 #define BEACON_NEARBY_INDICATOR 5
@@ -26,7 +26,8 @@
 
 #define CHECK_BEACON_LOCKED SLEEP_500MS
 #define CHECK_BEACON_UNLOCKED SLEEP_120MS
-#define DISCONNECTED_BEACON_RETRY_THRESHOLD (1 * 1000 / 120) * 5 // = 8.333 * 5
+#define DISCONNECTED_BEACON_NO_POWER_RETRY_THRESHOLD (1 * 1000 / 120) * 5 // = 8.333 * 15
+#define DISCONNECTED_BEACON_RETRY_THRESHOLD (1 * 1000 / 120) * 10 // = 8.333 * 15
     // ( 1 second (how many times transmitter sends per second) /
     // / CHECK_BEACON_UNLOCKED sleep time ) * how many seconds
 #define DISCONNECTED_BEACON_RETRY_THRESHOLD_TOLERANCE (1 * 1000 / 120) * 1.09
@@ -126,7 +127,6 @@ void powerDown(period_t period) {
     LowPower.powerDown(period, ADC_OFF, BOD_OFF);
 }
 
-
 void checkRetryOverflow(unsigned int &counter) {
     if (counter == 65534) {
         counter = DISCONNECTED_BEACON_RETRY_THRESHOLD + 1;
@@ -213,7 +213,10 @@ void loop(void) {
             prepareToLock = true;
         }
 
-        if (signalLostCounter >= DISCONNECTED_BEACON_RETRY_THRESHOLD) {
+        if (!powerUp && signalLostCounter >= DISCONNECTED_BEACON_NO_POWER_RETRY_THRESHOLD) {
+            lock = true;
+            prepareToLock = false;
+        } else if (signalLostCounter >= DISCONNECTED_BEACON_RETRY_THRESHOLD) {
             lock = true;
             prepareToLock = false;
             powerUp = false;
