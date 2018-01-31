@@ -8,7 +8,7 @@
 #include "lowPower.h"
 #include "Time.h"
 
-//#define DEBUG
+// #define DEBUG
 
 // User Interface
 #define BEACON_NEARBY_INDICATOR 5
@@ -121,6 +121,7 @@ bool checkBeacon(unsigned int &retryCounter, bool &lock, char secret[]) {
     }
 
     retryCounter++;
+    return false;
 }
 
 void powerDown(period_t period) {
