@@ -759,6 +759,55 @@ void	LowPowerClass::powerDown(period_t period, adc_t adc, bod_t bod)
 }
 
 /*******************************************************************************
+* Name: powerDown
+* Description: Putting microcontroller into power down state. This is
+*			   the lowest current consumption state. Use this together with 
+*			   external pin interrupt to wake up through external event 
+*			   triggering (example: RTC clockout pin, SD card detect pin).
+*
+* Argument  	Description
+* =========  	===========
+* 1. period     Duration of low power mode. Use SLEEP_FOREVER to use other wake
+*				up resource:
+*				(a) SLEEP_15MS - 15 ms sleep
+*				(b) SLEEP_30MS - 30 ms sleep
+*				(c) SLEEP_60MS - 60 ms sleep
+*				(d) SLEEP_120MS - 120 ms sleep
+*				(e) SLEEP_250MS - 250 ms sleep
+*				(f) SLEEP_500MS - 500 ms sleep
+*				(g) SLEEP_1S - 1 s sleep
+*				(h) SLEEP_2S - 2 s sleep
+*				(i) SLEEP_4S - 4 s sleep
+*				(j) SLEEP_8S - 8 s sleep
+*				(k) SLEEP_FOREVER - Sleep without waking up through WDT
+*
+* 2. bod		Brown Out Detector (BOD) module disable control:
+*				(a) BOD_OFF - Turn off BOD module
+*				(b) BOD_ON - Leave BOD module in its default state
+*
+*******************************************************************************/
+void	LowPowerClass::powerDown(period_t period, bod_t bod)
+{	
+	if (period != SLEEP_FOREVER)
+	{
+		wdt_enable(period);
+		WDTCSR |= (1 << WDIE);	
+	}
+	if (bod == BOD_OFF)	
+	{
+		#if defined __AVR_ATmega328P__
+			lowPowerBodOff(SLEEP_MODE_PWR_DOWN);
+		#else
+			lowPowerBodOn(SLEEP_MODE_PWR_DOWN);
+		#endif
+	}
+	else	
+	{
+		lowPowerBodOn(SLEEP_MODE_PWR_DOWN);
+	}
+}
+
+/*******************************************************************************
 * Name: powerSave
 * Description: Putting microcontroller into power save state. This is
 *			   the lowest current consumption state after power down. 

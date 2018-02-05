@@ -7,7 +7,7 @@
 #include "printf.h"
 #include "lowPower.h"
 
-#define DEBUG
+//#define DEBUG
 
 #define LED         8
 
@@ -38,7 +38,7 @@ void setup(void) {
     
 void loop(void) {
     radio.powerDown();
-    LowPower.powerDown(SLEEP_1S, ADC_OFF, BOD_OFF);
+    LowPower.powerDown(SLEEP_1S, BOD_OFF);
     digitalWrite(LED, LOW);
     radio.powerUp(); // go to normal radio operation mode (takes ~5ms)
     delay(5);

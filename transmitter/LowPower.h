@@ -145,6 +145,7 @@ class LowPowerClass
 			#endif
 			void	adcNoiseReduction(period_t period, adc_t adc, timer2_t timer2) __attribute__((optimize("-O1")));
 			void	powerDown(period_t period, adc_t adc, bod_t bod) __attribute__((optimize("-O1")));
+			void 	powerDown(period_t period, bod_t bod) __attribute__((optimize("-O1")));
 			void	powerSave(period_t period, adc_t adc, bod_t bod, timer2_t timer2) __attribute__((optimize("-O1")));
 			void	powerStandby(period_t period, adc_t adc, bod_t bod) __attribute__((optimize("-O1")));
 			void	powerExtStandby(period_t period, adc_t adc, bod_t bod, timer2_t timer2) __attribute__((optimize("-O1")));
