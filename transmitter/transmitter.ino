@@ -24,6 +24,8 @@ const uint64_t pipe = 0xE8E8F0F0E1LL;
 
 RF24 radio(CE, CSN);
 
+uint8_t transmit_counter = 0;
+
 void setup(void) {
     #ifdef DEBUG
         Serial.begin(115200);
@@ -38,11 +40,19 @@ void setup(void) {
     
 void loop(void) {
     radio.powerDown();
-    LowPower.powerDown(SLEEP_8S, BOD_OFF);
-    digitalWrite(LED, LOW);
+    LowPower.powerDown(SLEEP_1S, BOD_OFF);
+
+    if(transmit_counter >= 9){ // Turn LED on every 10s
+        digitalWrite(LED, LOW);
+        transmit_counter = 0; // Reset counter
+    }
+
     radio.powerUp(); // go to normal radio operation mode (takes ~5ms)
     radio.write(secret, sizeof(secret));
-    digitalWrite(LED, HIGH);
+    
+    digitalWrite(LED, HIGH); // Turn LED off 
+
+    transmit_counter++;
 }
 
 void initializeRadio() {
