@@ -38,16 +38,11 @@ void setup(void) {
     
 void loop(void) {
     radio.powerDown();
-    LowPower.powerDown(SLEEP_1S, BOD_OFF);
+    LowPower.powerDown(SLEEP_8S, BOD_OFF);
     digitalWrite(LED, LOW);
     radio.powerUp(); // go to normal radio operation mode (takes ~5ms)
     delay(5);
     radio.write(secret, sizeof(secret));
-    digitalWrite(LED, HIGH);
-}
-
-void initializePins() {
-    pinMode(LED, OUTPUT);
     digitalWrite(LED, HIGH);
 }
 
@@ -74,18 +69,16 @@ void systemInit() {
         1; // Disable ADC
 
     // Enable pull-ups on all port inputs
+    DDRB = 0x00;
+    DDRC = 0x00;
+    DDRD = 0x00;
+
     PORTB = 0xff;
     PORTC = 0xff;
     PORTD = 0xff;
 }
 
-void goToSleep() {
-    SMCR |= (1 << 2); // power down mode
-    SMCR |= 1; // enable sleep
-
-    // BOD DISABLE
-    MCUCR |= (3 << 5); // set both BODS and BODSE at the same time
-    MCUCR = (MCUCR & ~(1 << 5)) | (1 << 6); // then set the BODS bit and clear the BODSE bit at the same time
-
-    __asm__ __volatile__("sleep");
-} 
+void initializePins() {
+    pinMode(LED, OUTPUT);
+    digitalWrite(LED, HIGH);
+}
