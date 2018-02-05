@@ -41,7 +41,6 @@ void loop(void) {
     LowPower.powerDown(SLEEP_8S, BOD_OFF);
     digitalWrite(LED, LOW);
     radio.powerUp(); // go to normal radio operation mode (takes ~5ms)
-    delay(5);
     radio.write(secret, sizeof(secret));
     digitalWrite(LED, HIGH);
 }
@@ -51,7 +50,7 @@ void initializeRadio() {
     radio.setDataRate(RF24_250KBPS);
     radio.setRetries(3,5); // delay, count
     radio.setPayloadSize(PAYLOAD_SIZE);
-    radio.setPALevel(RF24_PA_HIGH);
+    radio.setPALevel(RF24_PA_MIN);
     radio.openWritingPipe(pipe);
     radio.stopListening();
 }
