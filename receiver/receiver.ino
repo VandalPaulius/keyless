@@ -281,6 +281,7 @@ bool checkSecret(){
     if (radio.available()) {
         #ifdef DEBUG
             printf("Radio available\r\n");
+            delay(5);
         #endif
         char message[PAYLOAD_SIZE + 1];
         message[PAYLOAD_SIZE] = '\0';
@@ -289,12 +290,14 @@ bool checkSecret(){
 
         #ifdef DEBUG
             printf("Message: %s\r\n", message);
+            delay(5);
         #endif
 
         if (strncmp(secret, message, sizeof(secret)) == 0) { // Secret matches
 
             #ifdef DEBUG
                 printf("Secret matches\r\n");
+                delay(5);
             #endif
 
             return true;
@@ -312,6 +315,9 @@ bool checkSecret(){
             case UNLOCKED:
                 printf("UNLOCKED\t");
                 break;
+            case UNLOCKED_SIGNAL_LOST:
+                printf("UNLOCKED_SIGNAL_LOST\t");
+                break;
             case IGNITION_ON:
                 printf("IGNITION_ON\t");
                 break;
@@ -322,19 +328,16 @@ bool checkSecret(){
                 printf("UNDEFINED\t");
         }
 
-        switch(interrupt_cause){
-            case NRF24_INTERRUPT:
-                printf("NRF24_INTERRUPT\r\n");
-                break;
-            case POWER_BUTTON_INTERRUPT:
-                printf("POWER_BUTTON_INTERRUPT\r\n");
-                break;
-            case TIMEOUT_INTERRUPT:
-                printf("TIMEOUT_INTERRUPT\r\n");
-                break;
-            case UNDEFINED:
-                printf("UNDEFINED\r\n");
-                break;
+        if(nrf24_interrupt_flag){
+            printf("NRF24_INTERRUPT\r\n");
+        }
+        
+        if(power_button_interrupt_flag){
+            printf("POWER_BUTTON_INTERRUPT\r\n");
+        }
+
+        if(timeout_interrupt_flag){
+            printf("TIMEOUT_INTERRUPT\r\n");
         } 
         delay(10);     
     }
