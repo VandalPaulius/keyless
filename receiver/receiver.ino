@@ -49,8 +49,7 @@ enum state_t{
 };
 
 uint8_t program_state = LOCKED, next_state = LOCKED, powerdown_period = LOCKED_POWERDOWN_PERIOD, signal_loss_counter = 0;
-volatile uint8_t nrf24_interrupt_flag = false, power_button_interrupt_flag = false, timeout_interrupt_flag = false;
-volatile uint8_t portd_history = 0xFF; 
+volatile uint8_t nrf24_interrupt_flag = false, power_button_interrupt_flag = false, timeout_interrupt_flag = false, portd_history = 0xFF;
 
 void setup(void) {
     #ifdef DEBUG
@@ -210,13 +209,13 @@ void systemInit() {
         1; // Disable ADC
 
     // Enable pull-ups on all port inputs
-    PORTB = 0xff;
-    PORTC = 0xff;
-    PORTD = 0xff;
+    PORTB = 0xFF;
+    PORTC = 0xFF;
+    PORTD = 0xFF;
 
-    PORTB = 0xff;
-    PORTC = 0xff;
-    PORTD = 0xff;
+    PORTB = 0xFF;
+    PORTC = 0xFF;
+    PORTD = 0xFF;
 }
 
 void initializePins() {
@@ -257,23 +256,15 @@ ISR(PCINT2_vect) { // handle pin change interrupt
 
     changed_pins = PIND ^ portd_history;
     portd_history = PIND;
+    changed_pins &= ~portd_history;
 
-    if((changed_pins & (1 << 4)) && (~portd_history & (1 << 4))){
+    if(changed_pins & (1 << NRF_IRQ)){
         nrf24_interrupt_flag = true;   
     }
 
-    if((changed_pins & (1 << 7)) && (~portd_history & (1 << 7))){
+    if(changed_pins & (1 << POWER_TOGGLE_BUTTON)){
         power_button_interrupt_flag = true;   
     }
-
-    
-    /*if(!digitalRead(NRF_IRQ)){
-        nrf24_interrupt_flag = true;   
-    }
-    
-    if (digitalRead(POWER_TOGGLE_BUTTON)) {
-        power_button_interrupt_flag = true;
-    }*/
 }
 
 void clearTimeout(){
