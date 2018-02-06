@@ -46,7 +46,8 @@ enum state_t{
 enum interrupt_causes_t{
     NRF24_INTERRUPT,
     POWER_BUTTON_INTERRUPT,
-    TIMEOUT_INTERRUPT
+    TIMEOUT_INTERRUPT,
+    UNDEFINED
 };
 
 uint8_t program_state = LOCKED, next_state = LOCKED, powerdown_period = LOCKED_POWERDOWN_PERIOD;
@@ -70,6 +71,7 @@ void loop(void) {
         case LOCKED:
             if(interrupt_cause == NRF24_INTERRUPT){
                 if(checkSecret()){
+                    clearTimeout();
                     next_state = UNLOCKED;
                 }
             }
@@ -77,7 +79,7 @@ void loop(void) {
         case UNLOCKED:
             if(interrupt_cause == NRF24_INTERRUPT){
                 if(checkSecret()){
-                    // TODO: clear timeout
+                    clearTimeout();
                 }
             }
             else if(interrupt_cause == POWER_BUTTON_INTERRUPT){
@@ -90,7 +92,7 @@ void loop(void) {
         case IGNITION_ON:
             if(interrupt_cause == NRF24_INTERRUPT){
                 if(checkSecret()){
-                    // TODO: clear timeout
+                    clearTimeout();
                 }
             }
             else if(interrupt_cause == POWER_BUTTON_INTERRUPT){
@@ -103,6 +105,7 @@ void loop(void) {
         case SIGNAL_LOST:
             if(interrupt_cause == NRF24_INTERRUPT){
                 if(checkSecret()){
+                    clearTimeout();
                     next_state = IGNITION_ON;
                 }
             }
@@ -144,6 +147,7 @@ void loop(void) {
         }
     }
     
+    interrupt_cause = UNDEFINED;
     LowPower.powerDown(powerdown_period, BOD_OFF);
 }
 
@@ -208,6 +212,10 @@ ISR(PCINT2_vect) { // handle pin change interrupt
     else if (!digitalRead(POWER_TOGGLE_BUTTON)) {
         interrupt_cause = POWER_BUTTON_INTERRUPT;
     }
+}
+
+void clearTimeout(){
+    wdt_disable();
 }
 
 bool checkSecret(){
