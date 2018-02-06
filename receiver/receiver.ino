@@ -163,17 +163,20 @@ void loop(void) {
                 digitalWrite(BEACON_NEARBY_INDICATOR, HIGH); // Turn off beacon nearby indicator 
                 digitalWrite(SIGNAL_LOSS_INDICATOR, HIGH); // Turn off signal lost indicator
                 digitalWrite(RELAY, HIGH); // Turn off relay
+                pciDetach(POWER_TOGGLE_BUTTON);
                 powerdown_period = LOCKED_POWERDOWN_PERIOD;
                 program_state = LOCKED;
                 break;
             case UNLOCKED:
                 digitalWrite(BEACON_NEARBY_INDICATOR, LOW); // Turn on beacon nearby indicator 
                 digitalWrite(RELAY, HIGH); // Turn off relay
+                pciAttach(POWER_TOGGLE_BUTTON);
                 powerdown_period = UNLOCKED_POWERDOWN_PERIOD;
                 program_state = UNLOCKED;
                 break;
             case UNLOCKED_SIGNAL_LOST:
                 digitalWrite(BEACON_NEARBY_INDICATOR, HIGH);
+                pciDetach(POWER_TOGGLE_BUTTON);
                 powerdown_period = UNLOCKED_SIGNAL_LOST_POWERDOWN_PERIOD;
                 program_state = UNLOCKED_SIGNAL_LOST;
                 break;
@@ -236,14 +239,17 @@ void initializeRadio() {
 }
 
 void attachInterrupts() {
-    pciSetup(POWER_TOGGLE_BUTTON);
-    pciSetup(NRF_IRQ);
+    pciAttach(NRF_IRQ);
 }
 
-void pciSetup(byte pin){
+void pciAttach(uint8_t pin){
     *digitalPinToPCMSK(pin) |= bit (digitalPinToPCMSKbit(pin));  // enable pin
     PCIFR  |= bit (digitalPinToPCICRbit(pin)); // clear any outstanding interrupt
     PCICR  |= bit (digitalPinToPCICRbit(pin)); // enable interrupt for the group
+}
+
+void pciDetach(uint8_t pin){
+    *digitalPinToPCMSK(pin) &= ~(bit (digitalPinToPCMSKbit(pin)));  // enable pin   
 }
 
 ISR(WDT_vect) {
