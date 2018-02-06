@@ -58,9 +58,9 @@ void loop(void) {
 void initializeRadio() {
     radio.begin();
     radio.setDataRate(RF24_250KBPS);
-    radio.setRetries(3,5); // delay, count
+    radio.setRetries(3,10); // delay, count
     radio.setPayloadSize(PAYLOAD_SIZE);
-    radio.setPALevel(RF24_PA_MIN);
+    radio.setPALevel(RF24_PA_LOW);
     radio.openWritingPipe(pipe);
     radio.stopListening();
 }
