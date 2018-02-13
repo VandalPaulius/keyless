@@ -100,6 +100,7 @@ void loop(void) {
                 nrf24_interrupt_flag = false;
                 if(checkSecret()){
                     clearTimeout();
+                    signal_loss_counter = 0;
                     next_state = UNLOCKED;
                 }
             }
