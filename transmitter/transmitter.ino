@@ -19,8 +19,8 @@
 #define PAYLOAD_SIZE   32
 
 // Constants
-const char secret[32] = "77da4ba6-fdf2-11e7-8be5-0ed5ffff"; // must be unique for every TX-RX pair
 const uint64_t pipe = 0xE8E8F0F0E1LL;
+const char secret[32] = "77da4ba6-fdf2-11e7-8be5-0ed5ffff"; // must be unique for every TX-RX pair
 
 RF24 radio(CE, CSN);
 
@@ -60,7 +60,7 @@ void initializeRadio() {
     radio.setDataRate(RF24_250KBPS);
     radio.setRetries(3,10); // delay, count
     radio.setPayloadSize(PAYLOAD_SIZE);
-    radio.setPALevel(RF24_PA_HIGH);
+    radio.setPALevel(RF24_PA_MAX);
     radio.openWritingPipe(pipe);
     radio.stopListening();
 }
