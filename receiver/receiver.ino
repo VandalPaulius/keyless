@@ -11,15 +11,15 @@
 //#define DEBUG
 
 // User Interface
-#define BEACON_NEARBY_INDICATOR 5
-#define SIGNAL_LOSS_INDICATOR   6
-#define POWER_TOGGLE_BUTTON     7
+#define BEACON_NEARBY_INDICATOR 6
+#define SIGNAL_LOSS_INDICATOR   7
+#define POWER_TOGGLE_BUTTON     9
 
 #define RELAY                   8
 
 // NRF24l01
-#define NRF_IRQ     4  // NRF IRQ pin (active low)
-#define CE          9  // Toggle between transmit (TX), receive (RX), standby
+#define NRF_IRQ     A0  // NRF IRQ pin (active low)
+#define CE          A1  // Toggle between transmit (TX), receive (RX), standby
     // and power-down mode
 #define CSN         10 // SPI chip select 
 
@@ -235,7 +235,8 @@ void initializeRadio() {
     radio.setDataRate(RF24_250KBPS);
     radio.setPayloadSize(PAYLOAD_SIZE);
     radio.openReadingPipe(1, pipe);
-    radio.setPALevel(RF24_PA_HIGH);
+    radio.setPALevel(RF24_PA_MIN);
+    radio.setLNALevel(RF24_LNA_LOW_GAIN); 
     radio.startListening();
 }
 
