@@ -1439,6 +1439,22 @@ uint8_t RF24::getPALevel(void)
 
 /****************************************************************************/
 
+void RF24::setLNALevel(uint8_t level)
+{
+  uint8_t setup = read_register(RF_SETUP) & 0xFE;
+
+  if(level){
+    level = 0x01;
+  }
+  else{
+    level = 0x00;
+  }
+
+  write_register(RF_SETUP, setup |= level);
+}
+
+/****************************************************************************/
+
 bool RF24::setDataRate(rf24_datarate_e speed)
 {
   bool result = false;

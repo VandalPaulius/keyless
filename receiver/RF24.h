@@ -30,6 +30,8 @@
  */
 typedef enum { RF24_PA_MIN = 0,RF24_PA_LOW, RF24_PA_HIGH, RF24_PA_MAX, RF24_PA_ERROR } rf24_pa_dbm_e ;
 
+typedef enum { RF24_LNA_LOW_GAIN = 0, RF24_LNA_HIGH_GAIN = 1} rf24_lna_e;
+
 /**
  * Data rate.  How fast data moves through the air.
  *
@@ -863,6 +865,8 @@ s   *
    */
    uint8_t getPALevel( void );
 
+   void setLNALevel(uint8_t level);
+
   /**
    * Set the transmission data rate
    *
@@ -870,7 +874,7 @@ s   *
    *
    * @param speed RF24_250KBPS for 250kbs, RF24_1MBPS for 1Mbps, or RF24_2MBPS for 2Mbps
    * @return true if the change was successful
-   */
+   */ 
   bool setDataRate(rf24_datarate_e speed);
 
   /**
