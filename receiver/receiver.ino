@@ -19,9 +19,9 @@
 
 // NRF24l01
 #define NRF_IRQ     A0  // NRF IRQ pin (active low)
-#define CE          A1  // Toggle between transmit (TX), receive (RX), standby
+#define CE          10  // Toggle between transmit (TX), receive (RX), standby
     // and power-down mode
-#define CSN         10 // SPI chip select 
+#define CSN         A1 // SPI chip select 
 
 #define PAYLOAD_SIZE        32
 
@@ -49,7 +49,7 @@ enum state_t{
 };
 
 uint8_t program_state = LOCKED, next_state = LOCKED, powerdown_period = LOCKED_POWERDOWN_PERIOD, signal_loss_counter = 0;
-volatile uint8_t nrf24_interrupt_flag = false, power_button_interrupt_flag = false, timeout_interrupt_flag = false, portd_history = 0xFF;
+volatile uint8_t nrf24_interrupt_flag = false, power_button_interrupt_flag = false, timeout_interrupt_flag = false, portc_history = 0xFF, portb_history = 0xFF;
 
 void setup(void) {
     #ifdef DEBUG
@@ -231,7 +231,7 @@ void initializePins() {
 }
 
 void initializeRadio() {
-    radio.begin();
+    radio.begin();  
     radio.setDataRate(RF24_250KBPS);
     radio.setPayloadSize(PAYLOAD_SIZE);
     radio.openReadingPipe(1, pipe);
@@ -245,6 +245,10 @@ void attachInterrupts() {
 }
 
 void pciAttach(uint8_t pin){
+    #ifdef DEBUG
+        printf("%i\r\n", bit(digitalPinToPCICRbit(pin)));
+    #endif
+
     *digitalPinToPCMSK(pin) |= bit (digitalPinToPCMSKbit(pin));  // enable pin
     PCIFR  |= bit (digitalPinToPCICRbit(pin)); // clear any outstanding interrupt
     PCICR  |= bit (digitalPinToPCICRbit(pin)); // enable interrupt for the group
@@ -259,19 +263,26 @@ ISR(WDT_vect) {
     timeout_interrupt_flag = true;
 }
 
-ISR(PCINT2_vect) { // handle pin change interrupt
+ISR(PCINT0_vect){
+    uint8_t changed_pins;
+    changed_pins = PINB ^ portb_history;
+    portb_history = PINB;
+    changed_pins &= ~portb_history;
+
+    if(changed_pins & bit(digitalPinToPCMSKbit(POWER_TOGGLE_BUTTON))){
+        power_button_interrupt_flag = true;   
+    }
+}
+
+ISR(PCINT1_vect) { // handle pin change interrupt
     uint8_t changed_pins;
 
-    changed_pins = PIND ^ portd_history;
-    portd_history = PIND;
-    changed_pins &= ~portd_history;
+    changed_pins = PINC ^ portc_history;
+    portc_history = PINC;
+    changed_pins &= ~portc_history;
 
-    if(changed_pins & (1 << NRF_IRQ)){
+    if(changed_pins & bit(digitalPinToPCMSKbit(NRF_IRQ))){
         nrf24_interrupt_flag = true;   
-    }
-
-    if(changed_pins & (1 << POWER_TOGGLE_BUTTON)){
-        power_button_interrupt_flag = true;   
     }
 }
 
